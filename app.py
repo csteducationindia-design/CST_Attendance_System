@@ -1,5 +1,5 @@
 import os
-from flask import Flask, jsonify
+from flask import Flask, jsonify, render_template
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime, timedelta
 import requests
@@ -141,7 +141,10 @@ def scan(student_id):
             "status": "WAIT", 
             "message": f"Class in progress. {minutes_left} mins remaining."
         })
-
+# ---------------- TEACHER SCANNER ----------------
+@app.route('/teacher')
+def teacher_scanner():
+    return render_template('scanner.html')
 # ---------------- RUN ----------------
 if __name__ == "__main__":
     with app.app_context():

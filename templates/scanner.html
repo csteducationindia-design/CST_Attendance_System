@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teacher Scanner - CST AI</title>
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+    <style>
+        body { font-family: sans-serif; text-align: center; background: #f4f4f4; padding: 20px; }
+        h2 { margin-bottom: 10px; }
+        #reader { width: 100%; max-width: 500px; margin: 0 auto; border: 2px solid #333; border-radius: 10px; }
+        #status { margin-top: 20px; padding: 15px; border-radius: 5px; font-weight: bold; display: none; }
+        .success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .wait { background-color: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
+    </style>
+</head>
+<body>
+
+    <h2>📷 Continuous Class Scanner</h2>
+    <div id="reader"></div>
+    <div id="status">Ready to scan...</div>
+
+    <script>
+        let lastResult = "";
+        let isScanning = true;
+
+        function onScanSuccess(decodedText, decodedResult) {
+            if (!isScanning) return; // Prevent double scanning
+            if (decodedText === lastResult) return; // Ignore same code if held too long
+
+            // Play a beep sound
+            let audio = new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg');
+            audio.play();
+
+            lastResult = decodedText;
+            isScanning = false; // Pause scanning for a moment
+
+            const statusDiv = document.getElementById("status");
+            statusDiv.style.display = "block";
+            statusDiv.className = "wait";
+            statusDiv.innerText = "Processing...";
+
+            // The QR code contains the full URL (e.g., https://scan.cstai.in/scan/cst101)
+            // We can just fetch that URL directly.
+            fetch(decodedText)
+                .then(response => response.json())
+                .then(data => {
+                    if(data.status === "ENTRY_MARKED" || data.status === "EXIT_MARKED") {
+                        statusDiv.className = "success";
+                        statusDiv.innerText = "✅ " + data.status;
+                    } else if (data.status === "WAIT" || data.status === "ALREADY_EXITED") {
+                        statusDiv.className = "wait";
+                        statusDiv.innerText = "⚠️ " + data.message;
+                    } else {
+                        statusDiv.className = "error";
+                        statusDiv.innerText = "❌ Error: " + (data.error || "Unknown");
+                    }
+                })
+                .catch(err => {
+                    statusDiv.className = "error";
+                    statusDiv.innerText = "❌ Network Error";
+                    console.error(err);
+                })
+                .finally(() => {
+                    // Resume scanning after 2 seconds
+                    setTimeout(() => {
+                        isScanning = true;
+                        statusDiv.style.display = "none";
+                        lastResult = ""; // Allow re-scanning same person
+                    }, 2500);
+                });
+        }
+
+        let html5QrcodeScanner = new Html5QrcodeScanner(
+            "reader", { fps: 10, qrbox: 250 });
+        html5QrcodeScanner.render(onScanSuccess);
+    </script>
+
+</body>
+</html>
