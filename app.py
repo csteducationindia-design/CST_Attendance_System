@@ -55,7 +55,7 @@ def send_sms_entry(phone, name, time_now):
     msg = urllib.parse.quote(msg)
     
     # Ensure phone number has country code if needed (optional but recommended)
-    # if len(phone) == 10: phone = "91" + phone
+    if len(phone) == 10: phone = "91" + phone
 
     url = f"http://servermsg.com/api/SmsApi/SendSingleApi?apikey={SMS_API_KEY}&SenderID={SMS_SENDER}&Phno={phone}&Msg={msg}&EntityID={SMS_ENTITY_ID}&TemplateID={ENTRY_TEMPLATE_ID}"
     
