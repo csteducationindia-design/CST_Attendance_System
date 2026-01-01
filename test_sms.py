@@ -9,7 +9,7 @@ TEMPLATE_ID = "1707176698851172545"  # Entry Template
 SENDER_ID = "CSTINI"
 
 # The number to test (Use YOUR personal mobile number here to check)
-TEST_MOBILE = "7083021167"  # <--- PUT YOUR NUMBER HERE (with 91)
+TEST_MOBILE = "919822826307"  # <--- PUT YOUR NUMBER HERE (with 91)
 
 # The Name to test
 STUDENT_NAME = "TestStudent"
