@@ -147,27 +147,33 @@ def scan(student_id):
 def teacher_scanner():
     return render_template('scanner.html')
 # ---------------- REPORT GENERATOR ----------------
+# ---------------- REPORT GENERATOR ----------------
 @app.route('/download_report')
 def download_report():
-    # 1. Get all attendance records from the database
+    # 1. Get all attendance records
     records = Attendance.query.all()
     
-    # 2. Create a CSV (Excel compatible) file in memory
+    # 2. Create CSV in memory
     si = io.StringIO()
     cw = csv.writer(si)
     
-    # 3. Write the Header Row
+    # 3. Write Header
     cw.writerow(['Student ID', 'Name', 'Date', 'Entry Time', 'Exit Time', 'Phone Number'])
     
-    # 4. Loop through records and write data
+    # 4. Loop through records
     for r in records:
-        # We use 'r.student' to get details from the Student table linked to this record
-        student_name = r.student.name if r.student else "Unknown"
-        parent_mobile = r.student.parent_mobile if r.student else "Unknown"
+        # 🔥 FIX: Manually find the student using the ID
+        student = Student.query.get(r.student_id)
+        
+        # Get Name (Safety check in case student was deleted)
+        student_name = student.name if student else "Unknown"
+        
+        # Get Mobile (Prefer the one in Student table, fallback to Attendance record)
+        parent_mobile = student.parent_mobile if student else r.parent_mobile
         
         cw.writerow([r.student_id, student_name, r.date, r.entry_time, r.exit_time, parent_mobile])
         
-    # 5. Prepare the response as a downloadable file
+    # 5. Download
     output = make_response(si.getvalue())
     output.headers["Content-Disposition"] = "attachment; filename=monthly_attendance_report.csv"
     output.headers["Content-type"] = "text/csv"
