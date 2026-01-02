@@ -1,10 +1,11 @@
-import os
-from flask import Flask, jsonify, render_template
+import csv
+import io
+from flask import Flask, request, jsonify, render_template, make_response # <--- Added make_response
 from flask_sqlalchemy import SQLAlchemy
-from datetime import datetime, timedelta
+from datetime import datetime
 import requests
 import urllib.parse
-import threading  # For sending SMS in background without freezing
+import os
 
 app = Flask(__name__)
 
@@ -145,6 +146,32 @@ def scan(student_id):
 @app.route('/teacher')
 def teacher_scanner():
     return render_template('scanner.html')
+# ---------------- REPORT GENERATOR ----------------
+@app.route('/download_report')
+def download_report():
+    # 1. Get all attendance records from the database
+    records = Attendance.query.all()
+    
+    # 2. Create a CSV (Excel compatible) file in memory
+    si = io.StringIO()
+    cw = csv.writer(si)
+    
+    # 3. Write the Header Row
+    cw.writerow(['Student ID', 'Name', 'Date', 'Entry Time', 'Exit Time', 'Phone Number'])
+    
+    # 4. Loop through records and write data
+    for r in records:
+        # We use 'r.student' to get details from the Student table linked to this record
+        student_name = r.student.name if r.student else "Unknown"
+        parent_mobile = r.student.parent_mobile if r.student else "Unknown"
+        
+        cw.writerow([r.student_id, student_name, r.date, r.entry_time, r.exit_time, parent_mobile])
+        
+    # 5. Prepare the response as a downloadable file
+    output = make_response(si.getvalue())
+    output.headers["Content-Disposition"] = "attachment; filename=monthly_attendance_report.csv"
+    output.headers["Content-type"] = "text/csv"
+    return output
 # ---------------- RUN ----------------
 if __name__ == "__main__":
     with app.app_context():
