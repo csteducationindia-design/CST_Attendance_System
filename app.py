@@ -11,6 +11,7 @@ from flask import Flask, jsonify, render_template, make_response
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime, timedelta
 import pytz 
+import traceback # <--- Added to debug errors
 
 app = Flask(__name__)
 
@@ -25,8 +26,6 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
 # ================= CREDENTIALS =================
-
-# 1. SMS CONFIG (Already Working)
 SMS_API_KEY = "sb6DpbNkzTrZmn6M4OOs9Zuu4sVWvv0owEBMrgjEuRo%3D"
 SMS_ENTITY_ID = "1701164059159702167"
 SMS_SENDER = "CSTINI"
@@ -34,16 +33,15 @@ ENTRY_TEMPLATE_ID = "1707176698851172545"
 EXIT_TEMPLATE_ID  = "1707176698785611900"
 INSTITUTE_PHONE = "7083021167"
 
-# 2. EMAIL CONFIG (Gmail)
+# EMAIL CONFIG
 SMTP_SERVER = "smtp.gmail.com"
 SMTP_PORT = 587
-SENDER_EMAIL = "cst.institute@gmail.com"     # <--- ENTER YOUR GMAIL
-SENDER_PASSWORD = "fafp tmkc ghsd sawe"   # <--- ENTER APP PASSWORD
+SENDER_EMAIL = "cst.institute@gmail.com"     
+SENDER_PASSWORD = "fafp tmkc ghsd sawe"   
 
-# 3. WHATSAPP CONFIG (Meta Cloud API)
-# If you don't have these yet, leave them empty. The system will skip WhatsApp.
-WHATSAPP_TOKEN = ""       # <--- Meta Bearer Token
-WHATSAPP_PHONE_ID = ""    # <--- Phone Number ID from Meta
+# WHATSAPP CONFIG
+WHATSAPP_TOKEN = ""       
+WHATSAPP_PHONE_ID = ""    
 
 # ================= MODELS =================
 class Student(db.Model):
@@ -62,66 +60,43 @@ class Attendance(db.Model):
 
 # ================= HELPERS =================
 def get_ist_time():
-    return pytz.utc.localize(datetime.utcnow()).astimezone(pytz.timezone('Asia/Kolkata'))
+    # Use explicit timezone handling
+    utc_now = datetime.utcnow().replace(tzinfo=pytz.utc)
+    return utc_now.astimezone(pytz.timezone('Asia/Kolkata'))
 
-# --- SERVICE 1: SMS ---
 def send_sms(phone, msg, template_id):
     if not phone: return
-    if len(phone) == 10: phone = "91" + phone # Add 91
-    
+    if len(phone) == 10: phone = "91" + phone
     encoded_msg = urllib.parse.quote(msg)
     url = f"http://servermsg.com/api/SmsApi/SendSingleApi?apikey={SMS_API_KEY}&SenderID={SMS_SENDER}&Phno={phone}&Msg={encoded_msg}&EntityID={SMS_ENTITY_ID}&TemplateID={template_id}"
-    try:
-        requests.get(url, timeout=10)
-        print(f"✅ SMS sent to {phone}")
-    except:
-        print(f"❌ SMS Failed")
+    try: requests.get(url, timeout=10)
+    except: pass
 
-# --- SERVICE 2: EMAIL ---
 def send_email(to_email, subject, body):
-    if not to_email or "@" not in to_email or "your_email" in SENDER_EMAIL: return
+    if not to_email or "@" not in to_email: return
     try:
         msg = MIMEMultipart()
         msg['From'] = SENDER_EMAIL
         msg['To'] = to_email
         msg['Subject'] = subject
         msg.attach(MIMEText(body, 'plain'))
-
         server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
         server.starttls()
         server.login(SENDER_EMAIL, SENDER_PASSWORD)
         server.sendmail(SENDER_EMAIL, to_email, msg.as_string())
         server.quit()
-        print(f"✅ Email sent to {to_email}")
-    except Exception as e:
-        print(f"❌ Email Failed: {e}")
+    except Exception as e: print(f"Email Error: {e}")
 
-# --- SERVICE 3: WHATSAPP (Cloud API) ---
 def send_whatsapp(phone, msg_body):
-    if not WHATSAPP_TOKEN or not WHATSAPP_PHONE_ID or not phone: return
+    if not WHATSAPP_TOKEN: return
     if len(phone) == 10: phone = "91" + phone
-    
     url = f"https://graph.facebook.com/v17.0/{WHATSAPP_PHONE_ID}/messages"
-    headers = {
-        "Authorization": f"Bearer {WHATSAPP_TOKEN}",
-        "Content-Type": "application/json"
-    }
-    data = {
-        "messaging_product": "whatsapp",
-        "to": phone,
-        "type": "text",
-        "text": {"body": msg_body}
-    }
-    try:
-        r = requests.post(url, headers=headers, json=data, timeout=10)
-        if r.status_code == 200: print(f"✅ WhatsApp sent to {phone}")
-        else: print(f"❌ WhatsApp API Error: {r.text}")
-    except Exception as e:
-        print(f"❌ WhatsApp Failed: {e}")
+    headers = {"Authorization": f"Bearer {WHATSAPP_TOKEN}", "Content-Type": "application/json"}
+    data = {"messaging_product": "whatsapp", "to": phone, "type": "text", "text": {"body": msg_body}}
+    try: requests.post(url, headers=headers, json=data, timeout=10)
+    except: pass
 
-# --- MASTER NOTIFIER ---
 def notify_parents(student, status, time_now):
-    # 1. Prepare Messages
     if status == "ENTRY":
         sms_msg = f"Dear {student.name}, {student.name} entered the class at {time_now}. CST Institute {INSTITUTE_PHONE} www.cste.in"
         email_sub = f"Entry Alert: {student.name}"
@@ -135,55 +110,57 @@ def notify_parents(student, status, time_now):
         wa_body = f"👋 *Exit Alert*\nStudent: {student.name}\nTime: {time_now}\nStatus: Left"
         tid = EXIT_TEMPLATE_ID
 
-    # 2. Send SMS
     threading.Thread(target=send_sms, args=(student.parent_mobile, sms_msg, tid)).start()
-    
-    # 3. Send Email
     threading.Thread(target=send_email, args=(student.parent_email, email_sub, email_body)).start()
-    
-    # 4. Send WhatsApp
     threading.Thread(target=send_whatsapp, args=(student.parent_mobile, wa_body)).start()
 
 # ================= ROUTES =================
 @app.route('/scan/<string:student_id>')
 def scan(student_id):
-    now = get_ist_time()
-    today_str = now.strftime('%d-%m-%Y') 
-    display_time = now.strftime('%I:%M %p')
-
-    student = Student.query.get(student_id)
-    if not student: return jsonify({"error": "Student not registered"}), 404
-    
-    record = Attendance.query.filter_by(student_id=student_id, date=today_str).first()
-    mobile = student.parent_mobile if student.parent_mobile else ""
-
-    # --- ENTRY ---
-    if not record:
-        new = Attendance(student_id=student_id, date=today_str, entry_time=display_time, parent_mobile=mobile)
-        db.session.add(new)
-        db.session.commit()
-        
-        notify_parents(student, "ENTRY", display_time)
-        return jsonify({"status": "ENTRY_MARKED", "time": display_time})
-
-    # --- EXIT ---
     try:
-        entry_time_obj = datetime.strptime(record.entry_time, '%I:%M %p').time()
-        entry_dt = now.replace(hour=entry_time_obj.hour, minute=entry_time_obj.minute, second=0, microsecond=0)
-        duration = now - entry_dt
-    except: duration = timedelta(minutes=0)
+        # 1. Get Time
+        now = get_ist_time()
+        today_str = now.strftime('%d-%m-%Y') 
+        display_time = now.strftime('%I:%M %p')
 
-    if duration >= timedelta(hours=1):
-        if record.exit_time:
-            return jsonify({"status": "ALREADY_EXITED", "message": "Already scanned out."})
-        record.exit_time = display_time
-        db.session.commit()
+        # 2. Get Student
+        student = Student.query.get(student_id)
+        if not student: return jsonify({"error": "Student not registered"}), 404
         
-        notify_parents(student, "EXIT", display_time)
-        return jsonify({"status": "EXIT_MARKED", "time": display_time})
-    else:
-        minutes_left = 60 - int(duration.total_seconds() / 60)
-        return jsonify({"status": "WAIT", "message": f"Class in progress. {minutes_left} mins remaining."})
+        record = Attendance.query.filter_by(student_id=student_id, date=today_str).first()
+        mobile = student.parent_mobile if student.parent_mobile else ""
+
+        # --- ENTRY ---
+        if not record:
+            new = Attendance(student_id=student_id, date=today_str, entry_time=display_time, parent_mobile=mobile)
+            db.session.add(new)
+            db.session.commit()
+            notify_parents(student, "ENTRY", display_time)
+            return jsonify({"status": "ENTRY_MARKED", "time": display_time})
+
+        # --- EXIT ---
+        try:
+            entry_time_obj = datetime.strptime(record.entry_time, '%I:%M %p').time()
+            entry_dt = now.replace(hour=entry_time_obj.hour, minute=entry_time_obj.minute, second=0, microsecond=0)
+            duration = now - entry_dt
+        except: duration = timedelta(minutes=0)
+
+        if duration >= timedelta(hours=1):
+            if record.exit_time:
+                return jsonify({"status": "ALREADY_EXITED", "message": "Already scanned out."})
+            record.exit_time = display_time
+            db.session.commit()
+            notify_parents(student, "EXIT", display_time)
+            return jsonify({"status": "EXIT_MARKED", "time": display_time})
+        else:
+            minutes_left = 60 - int(duration.total_seconds() / 60)
+            return jsonify({"status": "WAIT", "message": f"Class in progress. {minutes_left} mins remaining."})
+    
+    except Exception as e:
+        # 🔥 CATCH CRASHES AND SHOW ERROR ON PHONE 🔥
+        print(f"CRASH: {e}")
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/teacher')
 def teacher_scanner():
@@ -198,7 +175,7 @@ def download_report():
         student = Student.query.get(r.student_id)
         name = student.name if student else "Unknown"
         mobile = student.parent_mobile if student else r.parent_mobile
-        mobile_str = f"'{mobile}" # Fix for Excel
+        mobile_str = f"'{mobile}" 
         cw.writerow([r.student_id, name, r.date, r.entry_time, r.exit_time, mobile_str])
     output = make_response(si.getvalue())
     output.headers["Content-Disposition"] = "attachment; filename=monthly_attendance_report.csv"
