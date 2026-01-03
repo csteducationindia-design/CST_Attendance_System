@@ -84,7 +84,7 @@ def send_sms_exit(phone, name, time_now):
 def scan(student_id):
     # Use Indian Time (IST)
     now = get_ist_time()
-    today_str = now.strftime('%Y-%m-%d')
+    today_str = now.strftime('%d-%m-%Y')
     display_time = now.strftime('%I:%M %p') # e.g. 02:30 PM
 
     student = Student.query.get(student_id)
