@@ -29,7 +29,7 @@ db = SQLAlchemy(app)
 SMS_API_KEY = "sb6DpbNkzTrZmn6M4OOs9Zuu4sVWvv0owEBMrgjEuRo%3D"
 SMS_ENTITY_ID = "1701164059159702167"
 SMS_SENDER = "CSTINI"
-ENTRY_TEMPLATE_ID = "1707176698851172545"
+ENTRY_TEMPLATE_ID = "1707176741537683719"
 EXIT_TEMPLATE_ID  = "1707176698785611900"
 INSTITUTE_PHONE = "7083021167"
 
@@ -98,7 +98,7 @@ def send_whatsapp(phone, msg_body):
 
 def notify_parents(student, status, time_now):
     if status == "ENTRY":
-        sms_msg = f"Dear {student.name}, {student.name} entered the class at {time_now}. CST Institute {INSTITUTE_PHONE} www.cste.in"
+        sms_msg = f"Dear {student.name}, entered the class at {time_now}. CST {INSTITUTE_PHONE}"
         email_sub = f"Entry Alert: {student.name}"
         email_body = f"Dear Parent,\n\n{student.name} has reached the institute at {time_now}.\n\n- CST Institute"
         wa_body = f"✅ *Entry Alert*\nStudent: {student.name}\nTime: {time_now}\nStatus: Present"
@@ -145,7 +145,7 @@ def scan(student_id):
             duration = now - entry_dt
         except: duration = timedelta(minutes=0)
 
-        if duration >= timedelta(minutes=1):
+        if duration >= timedelta(minutes=45):
             if record.exit_time:
                 return jsonify({"status": "ALREADY_EXITED", "message": "Already scanned out."})
             record.exit_time = display_time
