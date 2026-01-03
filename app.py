@@ -4,10 +4,13 @@ import io
 import threading
 import urllib.parse
 import requests
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 from flask import Flask, jsonify, render_template, make_response
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime, timedelta
-import pytz # Handling Timezones properly
+import pytz 
 
 app = Flask(__name__)
 
@@ -21,11 +24,33 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
 
-# --- MODELS ---
+# ================= CREDENTIALS =================
+
+# 1. SMS CONFIG (Already Working)
+SMS_API_KEY = "sb6DpbNkzTrZmn6M4OOs9Zuu4sVWvv0owEBMrgjEuRo%3D"
+SMS_ENTITY_ID = "1701164059159702167"
+SMS_SENDER = "CSTINI"
+ENTRY_TEMPLATE_ID = "1707176698851172545"
+EXIT_TEMPLATE_ID  = "1707176698785611900"
+INSTITUTE_PHONE = "7083021167"
+
+# 2. EMAIL CONFIG (Gmail)
+SMTP_SERVER = "smtp.gmail.com"
+SMTP_PORT = 587
+SENDER_EMAIL = "cst.institute@gmail.com"     # <--- ENTER YOUR GMAIL
+SENDER_PASSWORD = "fafp tmkc ghsd sawe"   # <--- ENTER APP PASSWORD
+
+# 3. WHATSAPP CONFIG (Meta Cloud API)
+# If you don't have these yet, leave them empty. The system will skip WhatsApp.
+WHATSAPP_TOKEN = ""       # <--- Meta Bearer Token
+WHATSAPP_PHONE_ID = ""    # <--- Phone Number ID from Meta
+
+# ================= MODELS =================
 class Student(db.Model):
     id = db.Column(db.String(20), primary_key=True)
     name = db.Column(db.String(100))
     parent_mobile = db.Column(db.String(15))
+    parent_email = db.Column(db.String(100))
 
 class Attendance(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -35,112 +60,130 @@ class Attendance(db.Model):
     exit_time = db.Column(db.String(15))
     parent_mobile = db.Column(db.String(15))
 
-# --- SMS SETTINGS ---
-SMS_API_KEY = "sb6DpbNkzTrZmn6M4OOs9Zuu4sVWvv0owEBMrgjEuRo%3D"
-SMS_ENTITY_ID = "1701164059159702167"
-SMS_SENDER = "CSTINI"
-ENTRY_TEMPLATE_ID = "1707176698851172545"
-EXIT_TEMPLATE_ID  = "1707176698785611900"
-INSTITUTE_PHONE = "7083021167"
-
-# --- HELPER: GET INDIA TIME ---
+# ================= HELPERS =================
 def get_ist_time():
-    # Returns the current time in India (IST)
-    utc_now = datetime.utcnow()
-    ist_tz = pytz.timezone('Asia/Kolkata')
-    return utc_now.replace(tzinfo=pytz.utc).astimezone(ist_tz)
+    return pytz.utc.localize(datetime.utcnow()).astimezone(pytz.timezone('Asia/Kolkata'))
 
-def send_sms_entry(phone, name, time_now):
-    if not phone: return # Safety check
+# --- SERVICE 1: SMS ---
+def send_sms(phone, msg, template_id):
+    if not phone: return
+    if len(phone) == 10: phone = "91" + phone # Add 91
     
-    msg = f"Dear {name}, {name} entered the class at {time_now}. CST Institute {INSTITUTE_PHONE} www.cste.in"
-    msg = urllib.parse.quote(msg)
-    
-    # Auto-add 91 if missing
-    if len(phone) == 10: phone = "91" + phone
-
-    url = f"http://servermsg.com/api/SmsApi/SendSingleApi?apikey={SMS_API_KEY}&SenderID={SMS_SENDER}&Phno={phone}&Msg={msg}&EntityID={SMS_ENTITY_ID}&TemplateID={ENTRY_TEMPLATE_ID}"
+    encoded_msg = urllib.parse.quote(msg)
+    url = f"http://servermsg.com/api/SmsApi/SendSingleApi?apikey={SMS_API_KEY}&SenderID={SMS_SENDER}&Phno={phone}&Msg={encoded_msg}&EntityID={SMS_ENTITY_ID}&TemplateID={template_id}"
     try:
         requests.get(url, timeout=10)
-    except Exception as e:
-        print(f"SMS Error: {e}")
+        print(f"✅ SMS sent to {phone}")
+    except:
+        print(f"❌ SMS Failed")
 
-def send_sms_exit(phone, name, time_now):
-    if not phone: return # Safety check
-
-    msg = f"Dear {name}, {name} left the class at {time_now}. CST Institute {INSTITUTE_PHONE} www.cste.in"
-    msg = urllib.parse.quote(msg)
-
-    if len(phone) == 10: phone = "91" + phone
-
-    url = f"http://servermsg.com/api/SmsApi/SendSingleApi?apikey={SMS_API_KEY}&SenderID={SMS_SENDER}&Phno={phone}&Msg={msg}&EntityID={SMS_ENTITY_ID}&TemplateID={EXIT_TEMPLATE_ID}"
+# --- SERVICE 2: EMAIL ---
+def send_email(to_email, subject, body):
+    if not to_email or "@" not in to_email or "your_email" in SENDER_EMAIL: return
     try:
-        requests.get(url, timeout=10)
-    except Exception as e:
-        print(f"SMS Error: {e}")
+        msg = MIMEMultipart()
+        msg['From'] = SENDER_EMAIL
+        msg['To'] = to_email
+        msg['Subject'] = subject
+        msg.attach(MIMEText(body, 'plain'))
 
-# --- ROUTES ---
+        server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
+        server.starttls()
+        server.login(SENDER_EMAIL, SENDER_PASSWORD)
+        server.sendmail(SENDER_EMAIL, to_email, msg.as_string())
+        server.quit()
+        print(f"✅ Email sent to {to_email}")
+    except Exception as e:
+        print(f"❌ Email Failed: {e}")
+
+# --- SERVICE 3: WHATSAPP (Cloud API) ---
+def send_whatsapp(phone, msg_body):
+    if not WHATSAPP_TOKEN or not WHATSAPP_PHONE_ID or not phone: return
+    if len(phone) == 10: phone = "91" + phone
+    
+    url = f"https://graph.facebook.com/v17.0/{WHATSAPP_PHONE_ID}/messages"
+    headers = {
+        "Authorization": f"Bearer {WHATSAPP_TOKEN}",
+        "Content-Type": "application/json"
+    }
+    data = {
+        "messaging_product": "whatsapp",
+        "to": phone,
+        "type": "text",
+        "text": {"body": msg_body}
+    }
+    try:
+        r = requests.post(url, headers=headers, json=data, timeout=10)
+        if r.status_code == 200: print(f"✅ WhatsApp sent to {phone}")
+        else: print(f"❌ WhatsApp API Error: {r.text}")
+    except Exception as e:
+        print(f"❌ WhatsApp Failed: {e}")
+
+# --- MASTER NOTIFIER ---
+def notify_parents(student, status, time_now):
+    # 1. Prepare Messages
+    if status == "ENTRY":
+        sms_msg = f"Dear {student.name}, {student.name} entered the class at {time_now}. CST Institute {INSTITUTE_PHONE} www.cste.in"
+        email_sub = f"Entry Alert: {student.name}"
+        email_body = f"Dear Parent,\n\n{student.name} has reached the institute at {time_now}.\n\n- CST Institute"
+        wa_body = f"✅ *Entry Alert*\nStudent: {student.name}\nTime: {time_now}\nStatus: Present"
+        tid = ENTRY_TEMPLATE_ID
+    else:
+        sms_msg = f"Dear {student.name}, {student.name} left the class at {time_now}. CST Institute {INSTITUTE_PHONE} www.cste.in"
+        email_sub = f"Exit Alert: {student.name}"
+        email_body = f"Dear Parent,\n\n{student.name} has left the institute at {time_now}.\n\n- CST Institute"
+        wa_body = f"👋 *Exit Alert*\nStudent: {student.name}\nTime: {time_now}\nStatus: Left"
+        tid = EXIT_TEMPLATE_ID
+
+    # 2. Send SMS
+    threading.Thread(target=send_sms, args=(student.parent_mobile, sms_msg, tid)).start()
+    
+    # 3. Send Email
+    threading.Thread(target=send_email, args=(student.parent_email, email_sub, email_body)).start()
+    
+    # 4. Send WhatsApp
+    threading.Thread(target=send_whatsapp, args=(student.parent_mobile, wa_body)).start()
+
+# ================= ROUTES =================
 @app.route('/scan/<string:student_id>')
 def scan(student_id):
-    # Use Indian Time (IST)
     now = get_ist_time()
-    today_str = now.strftime('%d-%m-%Y')
-    display_time = now.strftime('%I:%M %p') # e.g. 02:30 PM
+    today_str = now.strftime('%d-%m-%Y') 
+    display_time = now.strftime('%I:%M %p')
 
     student = Student.query.get(student_id)
-    if not student:
-        return jsonify({"error": "Student not registered"}), 404
-
-    # Ensure phone is not None (Prevents Network Error Crash)
-    mobile = student.parent_mobile if student.parent_mobile else ""
-
+    if not student: return jsonify({"error": "Student not registered"}), 404
+    
     record = Attendance.query.filter_by(student_id=student_id, date=today_str).first()
+    mobile = student.parent_mobile if student.parent_mobile else ""
 
     # --- ENTRY ---
     if not record:
-        new = Attendance(student_id=student_id, date=today_str,
-                         entry_time=display_time, parent_mobile=mobile)
+        new = Attendance(student_id=student_id, date=today_str, entry_time=display_time, parent_mobile=mobile)
         db.session.add(new)
         db.session.commit()
-
-        # Send SMS (Safe Threading)
-        if mobile:
-            threading.Thread(target=send_sms_entry, args=(mobile, student.name, display_time)).start()
-
+        
+        notify_parents(student, "ENTRY", display_time)
         return jsonify({"status": "ENTRY_MARKED", "time": display_time})
 
-    # --- EXIT (Check 1 Hour Rule) ---
+    # --- EXIT ---
     try:
-        # We must parse the time carefully
         entry_time_obj = datetime.strptime(record.entry_time, '%I:%M %p').time()
-        # Combine today's date with entry time
-        entry_dt = datetime.combine(now.date(), entry_time_obj)
-        # Add Timezone info to entry_dt so we can compare it with 'now'
-        entry_dt = pytz.timezone('Asia/Kolkata').localize(entry_dt)
-        
+        entry_dt = now.replace(hour=entry_time_obj.hour, minute=entry_time_obj.minute, second=0, microsecond=0)
         duration = now - entry_dt
-    except:
-        # Fallback if time calculation fails
-        duration = timedelta(minutes=0)
+    except: duration = timedelta(minutes=0)
 
     if duration >= timedelta(hours=1):
         if record.exit_time:
             return jsonify({"status": "ALREADY_EXITED", "message": "Already scanned out."})
-
         record.exit_time = display_time
         db.session.commit()
-
-        if mobile:
-            threading.Thread(target=send_sms_exit, args=(mobile, student.name, display_time)).start()
-
+        
+        notify_parents(student, "EXIT", display_time)
         return jsonify({"status": "EXIT_MARKED", "time": display_time})
-
     else:
         minutes_left = 60 - int(duration.total_seconds() / 60)
-        return jsonify({
-            "status": "WAIT", 
-            "message": f"Class in progress. {minutes_left} mins remaining."
-        })
+        return jsonify({"status": "WAIT", "message": f"Class in progress. {minutes_left} mins remaining."})
 
 @app.route('/teacher')
 def teacher_scanner():
@@ -149,26 +192,19 @@ def teacher_scanner():
 @app.route('/download_report')
 def download_report():
     records = Attendance.query.all()
-    si = io.StringIO()
-    cw = csv.writer(si)
+    si = io.StringIO(); cw = csv.writer(si)
     cw.writerow(['Student ID', 'Name', 'Date', 'Entry Time', 'Exit Time', 'Phone Number'])
-    
     for r in records:
         student = Student.query.get(r.student_id)
         name = student.name if student else "Unknown"
         mobile = student.parent_mobile if student else r.parent_mobile
-        #cw.writerow([r.student_id, name, r.date, r.entry_time, r.exit_time, mobile])
-	# Force Excel to read as text by adding '
-        mobile_str = f"'{mobile}" 
+        mobile_str = f"'{mobile}" # Fix for Excel
         cw.writerow([r.student_id, name, r.date, r.entry_time, r.exit_time, mobile_str])
-
-        
     output = make_response(si.getvalue())
     output.headers["Content-Disposition"] = "attachment; filename=monthly_attendance_report.csv"
     output.headers["Content-type"] = "text/csv"
     return output
 
 if __name__ == "__main__":
-    with app.app_context():
-        db.create_all()
+    with app.app_context(): db.create_all()
     app.run(host="0.0.0.0", port=5000, debug=True)
