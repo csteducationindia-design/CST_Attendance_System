@@ -14,6 +14,11 @@ step -1  to add new student in students.csv file
 
 step -2 use python command to add student in database 
 c:/cst_attendance_system>python safe_add_students.py
+
+same method we have to use coolify 
+step -2 use python command to add student in database 
+#python safe_add_students.py
+
 step -3 to generate qr of new students
 c:\cst_attendance_system>python generate_qr.py
 
