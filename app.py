@@ -30,7 +30,7 @@ db = SQLAlchemy(app)
 # ================= LOGIN CONFIG =================
 # 👉 CHANGE PASSWORD HERE
 ADMIN_USERNAME = "admin"
-ADMIN_PASSWORD = "cst123" 
+ADMIN_PASSWORD = "Cst@11210143" 
 
 # ================= CREDENTIALS =================
 SMS_API_KEY = "sb6DpbNkzTrZmn6M4OOs9Zuu4sVWvv0owEBMrgjEuRo%3D"
