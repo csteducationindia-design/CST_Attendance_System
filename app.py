@@ -30,7 +30,7 @@ SMS_API_KEY = "sb6DpbNkzTrZmn6M4OOs9Zuu4sVWvv0owEBMrgjEuRo%3D"
 SMS_ENTITY_ID = "1701164059159702167"
 SMS_SENDER = "CSTINI"
 ENTRY_TEMPLATE_ID = "1707176741537683719"
-EXIT_TEMPLATE_ID  = "1707176698785611900"
+EXIT_TEMPLATE_ID  = "1707176745232982829"
 INSTITUTE_PHONE = "7083021167"
 
 # EMAIL CONFIG
@@ -104,7 +104,7 @@ def notify_parents(student, status, time_now):
         wa_body = f"✅ *Entry Alert*\nStudent: {student.name}\nTime: {time_now}\nStatus: Present"
         tid = ENTRY_TEMPLATE_ID
     else:
-        sms_msg = f"Dear {student.name}, {student.name} left the class at {time_now}. CST Institute {INSTITUTE_PHONE} www.cste.in"
+        sms_msg = f"Dear {student.name}, has successfully completed today’s class and has now left CST Education India"
         email_sub = f"Exit Alert: {student.name}"
         email_body = f"Dear Parent,\n\n{student.name} has left the institute at {time_now}.\n\n- CST Institute"
         wa_body = f"👋 *Exit Alert*\nStudent: {student.name}\nTime: {time_now}\nStatus: Left"
