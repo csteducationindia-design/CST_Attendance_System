@@ -200,7 +200,7 @@ def scan(student_id):
             duration = now - entry_dt
         except: duration = timedelta(minutes=0)
 
-        if duration >= timedelta(hours=1):
+        if duration >= timedelta(minutes=45):
             if record.exit_time:
                 return jsonify({"status": "ALREADY_EXITED", "message": "Already scanned out."})
             record.exit_time = display_time
