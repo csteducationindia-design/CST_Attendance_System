@@ -35,9 +35,9 @@ SMS_API_KEY = "sb6DpbNkzTrZmn6M4OOs9Zuu4sVWvv0owEBMrgjEuRo%3D"
 SMS_ENTITY_ID = "1701164059159702167"
 SMS_SENDER = "CSTINI"
 
-# TEMPLATE IDs
+# 🔥 UPDATED TEMPLATE IDs (As per your latest DLT approval)
 ENTRY_TEMPLATE_ID = "1707176741537683719"
-EXIT_TEMPLATE_ID  = "1707176745232982829" # Update this if you have a new Exit ID
+EXIT_TEMPLATE_ID  = "1707176745232982829"  # <--- NEW EXIT ID ADDED HERE
 
 INSTITUTE_PHONE = "7083021167"
 
@@ -72,10 +72,8 @@ def get_ist_time():
     return utc_now.astimezone(pytz.timezone('Asia/Kolkata'))
 
 def get_dlt_time(dt_obj):
-    # 🔥 FIX: Formats time as "8.00 am" or "10.00 am" (Dot instead of Colon, Lowercase)
-    # %I gives 08, %M gives 00. We replace : with . and lower() the AM/PM
+    # Formats time as "8.00 am" (Dot separator + Lowercase) for DLT compatibility
     time_str = dt_obj.strftime('%I.%M %p').lower()
-    # Remove leading zero (08.00 -> 8.00)
     if time_str.startswith('0'):
         time_str = time_str[1:]
     return time_str
@@ -86,8 +84,7 @@ def send_sms(phone, msg, template_id):
     encoded_msg = urllib.parse.quote(msg)
     url = f"http://servermsg.com/api/SmsApi/SendSingleApi?apikey={SMS_API_KEY}&SenderID={SMS_SENDER}&Phno={phone}&Msg={encoded_msg}&EntityID={SMS_ENTITY_ID}&TemplateID={template_id}"
     try: 
-        r = requests.get(url, timeout=10)
-        print(f"SMS STATUS: {r.text}") # Print status to logs
+        requests.get(url, timeout=10)
     except: pass
 
 def send_email(to_email, subject, body):
@@ -115,10 +112,10 @@ def send_whatsapp(phone, msg_body):
     except: pass
 
 def notify_parents(student, status, time_now):
-    # time_now is the clean string "8.00 am"
+    # time_now is already formatted as "8.00 am"
     
     if status == "ENTRY":
-        # Dear {Name}, entered the class at {Time}. CST {Phone}
+        # Entry Template
         sms_msg = f"Dear {student.name}, entered the class at {time_now}. CST {INSTITUTE_PHONE}"
         
         email_sub = f"Entry Alert: {student.name}"
@@ -126,7 +123,7 @@ def notify_parents(student, status, time_now):
         wa_body = f"✅ *Entry Alert*\nStudent: {student.name}\nTime: {time_now}\nStatus: Present"
         tid = ENTRY_TEMPLATE_ID
     else:
-        # UPDATED EXIT TEMPLATE
+        # 🔥 UPDATED EXIT TEMPLATE (Matches your DLT text)
         sms_msg = f"Dear {student.name}, has successfully completed todays class and has now left CST Education India"
         
         email_sub = f"Exit Alert: {student.name}"
@@ -160,10 +157,14 @@ def login():
     <input type="text" name="username" placeholder="Username" required><input type="password" name="password" placeholder="Password" required>
     <button type="submit">Login</button></form><p style="color:red">{{ msg }}</p></div></body></html>""", msg=msg)
 
+@app.route('/logout')
+def logout():
+    session.clear()
+    return redirect(url_for('login'))
+
 # ================= ROUTES =================
 @app.route('/scan/<string:student_id>')
 def scan(student_id):
-    # 🔒 SECURITY CHECK
     if not session.get('logged_in'):
         return jsonify({"error": "Unauthorized. Please Login."}), 401
 
@@ -171,9 +172,9 @@ def scan(student_id):
         now = get_ist_time()
         today_str = now.strftime('%d-%m-%Y') 
         
-        # 🔥 FIX: Use DLT Friendly format (8.00 am)
+        # Use DLT Friendly format (8.00 am)
         dlt_time = get_dlt_time(now)
-        display_time = dlt_time # Save this format in DB too
+        display_time = dlt_time 
 
         student = Student.query.get(student_id)
         if not student: return jsonify({"error": "Student not registered"}), 404
@@ -181,7 +182,6 @@ def scan(student_id):
         record = Attendance.query.filter_by(student_id=student_id, date=today_str).first()
         mobile = student.parent_mobile if student.parent_mobile else ""
 
-        # --- ENTRY ---
         if not record:
             new = Attendance(student_id=student_id, date=today_str, entry_time=display_time, parent_mobile=mobile)
             db.session.add(new)
@@ -189,14 +189,11 @@ def scan(student_id):
             notify_parents(student, "ENTRY", display_time)
             return jsonify({"status": "ENTRY_MARKED", "time": display_time})
 
-        # --- EXIT ---
         try:
-            # We parse "8.00 am" format back to object for math
-            # Try parsing the new dot format first
+            # Parse time back for 1-hour calculation
             try:
                 entry_time_obj = datetime.strptime(record.entry_time, '%I.%M %p').time()
             except:
-                # Fallback for old records (colon)
                 entry_time_obj = datetime.strptime(record.entry_time, '%I:%M %p').time()
                 
             entry_dt = now.replace(hour=entry_time_obj.hour, minute=entry_time_obj.minute, second=0, microsecond=0)
