@@ -35,9 +35,9 @@ SMS_API_KEY = "sb6DpbNkzTrZmn6M4OOs9Zuu4sVWvv0owEBMrgjEuRo%3D"
 SMS_ENTITY_ID = "1701164059159702167"
 SMS_SENDER = "CSTINI"
 
-# 🔥 UPDATED TEMPLATE IDs (As per your latest DLT approval)
+# TEMPLATE IDs (Entry from File 1, Exit from File 2)
 ENTRY_TEMPLATE_ID = "1707176741537683719"
-EXIT_TEMPLATE_ID  = "1707176745232982829"  # <--- NEW EXIT ID ADDED HERE
+EXIT_TEMPLATE_ID  = "1707176745232982829" 
 
 INSTITUTE_PHONE = "7083021167"
 
@@ -70,13 +70,6 @@ class Attendance(db.Model):
 def get_ist_time():
     utc_now = datetime.utcnow().replace(tzinfo=pytz.utc)
     return utc_now.astimezone(pytz.timezone('Asia/Kolkata'))
-
-def get_dlt_time(dt_obj):
-    # Formats time as "8.00 am" (Dot separator + Lowercase) for DLT compatibility
-    time_str = dt_obj.strftime('%I.%M %p').lower()
-    if time_str.startswith('0'):
-        time_str = time_str[1:]
-    return time_str
 
 def send_sms(phone, msg, template_id):
     if not phone: return
@@ -112,20 +105,18 @@ def send_whatsapp(phone, msg_body):
     except: pass
 
 def notify_parents(student, status, time_now):
-    # time_now is already formatted as "8.00 am"
+    # time_now will be "08:00 AM" (Correct for Entry)
     
     if status == "ENTRY":
-        # Entry Template
+        # ✅ ENTRY (Uses File 1 Logic)
         sms_msg = f"Dear {student.name}, entered the class at {time_now}. CST {INSTITUTE_PHONE}"
-        
         email_sub = f"Entry Alert: {student.name}"
         email_body = f"Dear Parent,\n\n{student.name} has reached the institute at {time_now}.\n\n- CST Institute"
         wa_body = f"✅ *Entry Alert*\nStudent: {student.name}\nTime: {time_now}\nStatus: Present"
         tid = ENTRY_TEMPLATE_ID
     else:
-        # 🔥 UPDATED EXIT TEMPLATE (Matches your DLT text)
+        # ✅ EXIT (Uses File 2 Logic - No Time Variable needed in SMS)
         sms_msg = f"Dear {student.name}, has successfully completed todays class and has now left CST Education India"
-        
         email_sub = f"Exit Alert: {student.name}"
         email_body = f"Dear Parent,\n\n{student.name} has left the institute at {time_now}.\n\n- CST Education India"
         wa_body = f"👋 *Exit Alert*\nStudent: {student.name}\nTime: {time_now}\nStatus: Left"
@@ -170,12 +161,12 @@ def scan(student_id):
 
     try:
         now = get_ist_time()
-        today_str = now.strftime('%I:%M %p') 
-
         
-        # Use DLT Friendly format (8.00 am)
-        dlt_time = get_dlt_time(now)
-        display_time = dlt_time 
+        # 🔥 FIX 1: Restore Correct Date Format (Was broken in app.py)
+        today_str = now.strftime('%d-%m-%Y') 
+        
+        # 🔥 FIX 2: Restore Standard Time Format (08:00 AM) for Entry SMS
+        display_time = now.strftime('%I:%M %p') 
 
         student = Student.query.get(student_id)
         if not student: return jsonify({"error": "Student not registered"}), 404
@@ -183,6 +174,7 @@ def scan(student_id):
         record = Attendance.query.filter_by(student_id=student_id, date=today_str).first()
         mobile = student.parent_mobile if student.parent_mobile else ""
 
+        # --- ENTRY ---
         if not record:
             new = Attendance(student_id=student_id, date=today_str, entry_time=display_time, parent_mobile=mobile)
             db.session.add(new)
@@ -190,17 +182,15 @@ def scan(student_id):
             notify_parents(student, "ENTRY", display_time)
             return jsonify({"status": "ENTRY_MARKED", "time": display_time})
 
+        # --- EXIT ---
         try:
-            # Parse time back for 1-hour calculation
-            try:
-                entry_time_obj = datetime.strptime(record.entry_time, '%I.%M %p').time()
-            except:
-                entry_time_obj = datetime.strptime(record.entry_time, '%I:%M %p').time()
-                
+            # Standard time parsing (Works for 08:00 AM)
+            entry_time_obj = datetime.strptime(record.entry_time, '%I:%M %p').time()
             entry_dt = now.replace(hour=entry_time_obj.hour, minute=entry_time_obj.minute, second=0, microsecond=0)
             duration = now - entry_dt
         except: duration = timedelta(minutes=0)
 
+        # 45 minutes lock (As per your file)
         if duration >= timedelta(minutes=45):
             if record.exit_time:
                 return jsonify({"status": "ALREADY_EXITED", "message": "Already scanned out."})
