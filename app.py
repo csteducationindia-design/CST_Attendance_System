@@ -170,7 +170,8 @@ def scan(student_id):
 
     try:
         now = get_ist_time()
-        today_str = now.strftime('%d-%m-%Y') 
+        today_str = now.strftime('%I:%M %p') 
+
         
         # Use DLT Friendly format (8.00 am)
         dlt_time = get_dlt_time(now)
