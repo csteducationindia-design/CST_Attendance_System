@@ -1,47 +1,50 @@
-﻿id,name,parent_mobile,parent_email
-cst101,suraj borse,7083021167,csthelpc@gmail.com
-cst102,shravan chavhan,9822826307,chavhan.cst@gmail.com
-cst103,hansika chavhan,7083021167,csteducationindia@gmail.com
-cst104,snehal chavhan,9822826307,11210143@mkcl.org
-cst105,shripad,9860212133,computer.shoppebsl@gmail.com
-cst106,Komal Borse,9822826307,vijayiepljalgaon@gmail.com
-107,Sushil Chaudhari,8446493707,sushilchaudhari054@gmail.com
-108,Khushal Ahire,9923016029,
-109,Vaishanavi Bhoi,8999272991,vaishnavibhoi08092002@gmail.com
-110,jidnyasa Sapkale,9637376898,kbaviskar649@gmail.com
-111,Karuna Tayade,8459917530,karunatayade48@gmail.com
-112,Jayashri Chaudhari,7798788050,jayashrichaudhari147@gmail.com
-113,Dishika Johare,9049870729,khushaljohre7@gmail.om
-114,bhumika Bhoi,9322707102,bhumikabhoi047@gmail.com
-115,shivam Sonowane,9699282471,sonowaneshivam08@gmail.com
-116,prithvirajsingh ajaysingh thakur,7620412057,prithvirajthakur738@gmail.com
-117,Yishika Rajesh Zope,9764535855,yishikazope@gmail.com
-118,Minaaj Shaikh,8421621786,minaazrauf@gmail.com
-119,Tai Koli,8208712106,kolitai902@gmail.com
-120,komal Sapkale,9130263680,
-121,Varsha Bhalerao,8806867767,varshabhalerao9833@gmail.com
-122,Prashant Jaware,7620706370,prashantjaware14@gmail.com
-123,Pratik Nikam,9673601452,pratiknikambsl@gmail.com
-124,Shilpa Pareshi,9975313489,pardeshishilpa393@gmail.com
-125,Radhika Pol,7499975784,polradhika6@gmail.com
-126,Chetna Manne,8308159362,chetnamanne123@gmail.com
-127,Sahil Tadavi,9890177391,sahiltadvi134@gmail.com
-128,Nandini Vispute,8806868329,nandinivispute320@gmail.com
-129,Diksha Survanshi,9172270399,dikshasuryavanshi99@ggmail.co
-130,Pranav Sapkale,9579197636,mrunalkoli009@gmail.com
-131,Khushi Chaudhari,8459621433,khhushichaud3001@mail.com
-132,Lavesh Sonawane,9307476095,sonawanelavesh913@gmail.com
-133,Harsh Upase,9359941938,Upaseyashyogesh@gmail.com
-134,Ankit Vishvakarma,9315951545,shrmaankit931595@gmail.com
-135,Samiksha Pandav,8390069449,SamikshaPandav@gmmail.com
-136,Kartik Chandan,8007723246,Komalchandan088@gmail.com
-137,Rupam Shankupale ,9699190658,rupamshankupale38@gmail.com
-138,Yogesh Rakhunde ,7499024521,Rakhundeyogesh45@gmail.com
-139,Kalyani Mahale ,9370085950,Kalyanimahale424@gmail.com
-140,Sakshi Barhate,8788027150,Sakshibarhate04@gmail.com
-141,Bhusan Patil,7038280434,bp8471615@gmail.com
-142,Manasvi More,8010012007,manaswimore037@gmail.com
-143,Apeksha Kurkure,9922211815,apekshahkurkure@gmail.com
-144,Trishal Sonawane,9172551926,trishalsonawane0@gmail.com
-145,Yashica Clancy,8698287752,delwynclancy@gmail.com
-146,Shubham Nile,9324460862,poojanile31121989@gmail.com
+id	name	parent_mobile	parent_email			
+cst101	suraj borse	7083021167	csthelpc@gmail.com			
+cst102	shravan chavhan	9822826307	chavhan.cst@gmail.com			
+cst103	hansika chavhan	7083021167	csteducationindia@gmail.com			
+cst104	snehal chavhan	9822826307	11210143@mkcl.org			
+cst105	shripad	9860212133	computer.shoppebsl@gmail.com			
+cst106	Komal Borse	9822826307	vijayiepljalgaon@gmail.com			
+107	Sushil Chaudhari	8446493707	sushilchaudhari054@gmail.com			
+108	Khushal Ahire	9923016029	sandeep.r.ahire@gmail.com			
+109	Vaishanavi Bhoi	8999272991	vaishnavibhoi08092002@gmail.com			
+110	jidnyasa Sapkale	9637376898	kbaviskar649@gmail.com			
+111	Karuna Tayade	8459917530	karunatayade48@gmail.com			
+112	Jayashri Chaudhari	7798788050	jayashrichaudhari147@gmail.com			
+113	Dishika Johare	9049870729	khushaljohre7@gmail.om			
+114	bhumika Bhoi	9322707102	bhumikabhoi047@gmail.com			
+115	shivam Sonowane	9699282471	sonowaneshivam08@gmail.com			
+116	prithvirajsingh ajaysingh thakur	7620412057	prithvirajthakur738@gmail.com			
+117	Yishika Rajesh Zope	9764535855	yishikazope@gmail.com			
+118	Minaaj Shaikh	8421621786	minaazrauf@gmail.com			
+119	Tai Koli	8208712106	kolitai902@gmail.com			
+120	komal Sapkale	9130263680				
+121	Varsha Bhalerao	8806867767	varshabhalerao9833@gmail.com			
+122	Prashant Jaware	7620706370	prashantjaware14@gmail.com			
+123	Pratik Nikam	9673601452	pratiknikambsl@gmail.com			
+124	Shilpa Pareshi	9975313489	pardeshishilpa393@gmail.com			
+125	Radhika Pol	7499975784	polradhika6@gmail.com			
+126	Chetna Manne	8308159362	chetnamanne123@gmail.com			
+127	Sahil Tadavi	9890177391	sahiltadvi134@gmail.com			
+128	Nandini Vispute	8806868329	nandinivispute320@gmail.com			
+129	Diksha Survanshi	9172270399	dikshasuryavanshi99@gmail.com			
+130	Pranav Sapkale	9579197636	mrunalkoli009@gmail.com			
+131	Khushi Chaudhari	8459621433	khushichaud3001@mail.com			
+132	Lavesh Sonawane	9307476095	sonawanelavesh913@gmail.com			
+133	Harsh Upase	9359941938	Upaseyashyogesh@gmail.com			
+134	Ankit Vishvakarma	9315951545	shrmaankit931595@gmail.com			
+135	Samiksha Pandav	8390069449	SamikshaPandav@gmail.com			ratnapandev@gmail.com
+136	Kartik Chandan	8007723246	Komalchandan088@gmail.com			
+137	Rupam Shankupale 	9699190658	rupamshankupale38@gmail.com			
+138	Yogesh Rakhunde 	7499024521	Rakhundeyogesh45@gmail.com			
+139	Kalyani Mahale 	9370085950	Kalyanimahale424@gmail.com			
+140	Sakshi Barhate	8788027150	Sakshibarhate04@gmail.com			
+141	Bhusan Patil	7038280434	bp8471615@gmail.com			
+142	Manasvi More	8010012007	manaswimore037@gmail.com			
+143	Apeksha Kurkure	9922211815	apekshahkurkure@gmail.com			
+144	Trishal Sonawane	9172551926	trishalsonawane0@gmail.com			
+145	Yashica Clancy	8698287752	delwynclancy@gmail.com			
+146	Shubham Nile	9324460862	poojanile31121989@gmail.com			
+147	Harshal Sonawane	8208535097	harshalsonawane243@gmail.com			
+148	Bhushan Tidke	9021126960	bhushantidke28@gmail.com			
+149	Sumit Meshram	9372960021	pagarevenubai@gmail.com			

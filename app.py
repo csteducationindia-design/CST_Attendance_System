@@ -35,9 +35,9 @@ SMS_API_KEY = "sb6DpbNkzTrZmn6M4OOs9Zuu4sVWvv0owEBMrgjEuRo%3D"
 SMS_ENTITY_ID = "1701164059159702167"
 SMS_SENDER = "CSTINI"
 
-# TEMPLATE IDs (Entry from File 1, Exit from File 2)
-ENTRY_TEMPLATE_ID = "1707176741537683719"
-EXIT_TEMPLATE_ID  = "1707176745232982829" 
+# TEMPLATE IDs
+ENTRY_TEMPLATE_ID = "1707176741537683719"  # Entry ID from Dec 3rd (Working)
+EXIT_TEMPLATE_ID  = "1707176745232982829"  # New Exit ID (Working)
 
 INSTITUTE_PHONE = "7083021167"
 
@@ -105,17 +105,17 @@ def send_whatsapp(phone, msg_body):
     except: pass
 
 def notify_parents(student, status, time_now):
-    # time_now will be "08:00 AM" (Correct for Entry)
+    # time_now will be "08:00 AM"
     
     if status == "ENTRY":
-        # ✅ ENTRY (Uses File 1 Logic)
+        # ✅ ENTRY: Uses standard time format (Fixes the problem)
         sms_msg = f"Dear {student.name}, entered the class at {time_now}. CST {INSTITUTE_PHONE}"
         email_sub = f"Entry Alert: {student.name}"
         email_body = f"Dear Parent,\n\n{student.name} has reached the institute at {time_now}.\n\n- CST Institute"
         wa_body = f"✅ *Entry Alert*\nStudent: {student.name}\nTime: {time_now}\nStatus: Present"
         tid = ENTRY_TEMPLATE_ID
     else:
-        # ✅ EXIT (Uses File 2 Logic - No Time Variable needed in SMS)
+        # ✅ EXIT: Uses the NEW text you wanted
         sms_msg = f"Dear {student.name}, has successfully completed todays class and has now left CST Education India"
         email_sub = f"Exit Alert: {student.name}"
         email_body = f"Dear Parent,\n\n{student.name} has left the institute at {time_now}.\n\n- CST Education India"
@@ -162,10 +162,10 @@ def scan(student_id):
     try:
         now = get_ist_time()
         
-        # 🔥 FIX 1: Restore Correct Date Format (Was broken in app.py)
+        # ✅ FIX 1: Use DATE for today_str (Critical bug fix)
         today_str = now.strftime('%d-%m-%Y') 
         
-        # 🔥 FIX 2: Restore Standard Time Format (08:00 AM) for Entry SMS
+        # ✅ FIX 2: Use STANDARD TIME (08:00 AM) - This fixes the Entry SMS
         display_time = now.strftime('%I:%M %p') 
 
         student = Student.query.get(student_id)
@@ -184,13 +184,13 @@ def scan(student_id):
 
         # --- EXIT ---
         try:
-            # Standard time parsing (Works for 08:00 AM)
+            # Parses "08:00 AM" correctly
             entry_time_obj = datetime.strptime(record.entry_time, '%I:%M %p').time()
             entry_dt = now.replace(hour=entry_time_obj.hour, minute=entry_time_obj.minute, second=0, microsecond=0)
             duration = now - entry_dt
         except: duration = timedelta(minutes=0)
 
-        # 45 minutes lock (As per your file)
+        # 45 Minutes Lock
         if duration >= timedelta(minutes=45):
             if record.exit_time:
                 return jsonify({"status": "ALREADY_EXITED", "message": "Already scanned out."})
