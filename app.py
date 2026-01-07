@@ -35,9 +35,11 @@ SMS_API_KEY = "sb6DpbNkzTrZmn6M4OOs9Zuu4sVWvv0owEBMrgjEuRo%3D"
 SMS_ENTITY_ID = "1701164059159702167"
 SMS_SENDER = "CSTINI"
 
-# TEMPLATE IDs
-ENTRY_TEMPLATE_ID = "1707176741537683719"  # Entry ID (Dec 3rd Version)
-EXIT_TEMPLATE_ID  = "1707176745232982829"  # New Exit ID
+# ✅ NEW APPROVED ENTRY TEMPLATE ID
+ENTRY_TEMPLATE_ID = "1707176777667925464"
+
+# Exit Template ID (Keep the working one)
+EXIT_TEMPLATE_ID  = "1707176745232982829"  
 
 INSTITUTE_PHONE = "7083021167"
 
@@ -74,12 +76,10 @@ def get_ist_time():
 def send_sms(phone, msg, template_id):
     if not phone: return
     if len(phone) == 10: phone = "91" + phone
-    
     encoded_msg = urllib.parse.quote(msg)
     url = f"http://servermsg.com/api/SmsApi/SendSingleApi?apikey={SMS_API_KEY}&SenderID={SMS_SENDER}&Phno={phone}&Msg={encoded_msg}&EntityID={SMS_ENTITY_ID}&TemplateID={template_id}"
-    
     try: 
-        # 🔥 DEBUGGING ADDED HERE: Prints the Server Response
+        # Debug print to help check status in logs
         response = requests.get(url, timeout=10)
         print(f"SMS SENT TO {phone} | TEMPLATE: {template_id} | STATUS: {response.text}")
     except Exception as e: 
@@ -98,7 +98,6 @@ def send_email(to_email, subject, body):
         server.login(SENDER_EMAIL, SENDER_PASSWORD)
         server.sendmail(SENDER_EMAIL, to_email, msg.as_string())
         server.quit()
-        print(f"EMAIL SENT TO {to_email}")
     except Exception as e: print(f"Email Error: {e}")
 
 def send_whatsapp(phone, msg_body):
@@ -111,20 +110,18 @@ def send_whatsapp(phone, msg_body):
     except: pass
 
 def notify_parents(student, status, time_now):
-    # time_now will be "08:00 AM" (Standard Format)
-    
     if status == "ENTRY":
-        # ✅ ENTRY SMS (Matches Dec 3rd logic)
-        sms_msg = f"Dear {student.name}, entered the class at {time_now}. CST {INSTITUTE_PHONE}"
+        # ✅ NEW APPROVED MESSAGE FORMAT
+        # "Dear {Name}, entered the class at {Time}. CST Education India 7083021167"
+        sms_msg = f"Dear {student.name}, entered the class at {time_now}. CST Education India 7083021167"
         
         email_sub = f"Entry Alert: {student.name}"
         email_body = f"Dear Parent,\n\n{student.name} has reached the institute at {time_now}.\n\n- CST Institute"
         wa_body = f"✅ *Entry Alert*\nStudent: {student.name}\nTime: {time_now}\nStatus: Present"
         tid = ENTRY_TEMPLATE_ID
     else:
-        # ✅ EXIT SMS (Matches New Template)
+        # Exit Message (Unchanged)
         sms_msg = f"Dear {student.name}, has successfully completed todays class and has now left CST Education India"
-        
         email_sub = f"Exit Alert: {student.name}"
         email_body = f"Dear Parent,\n\n{student.name} has left the institute at {time_now}.\n\n- CST Education India"
         wa_body = f"👋 *Exit Alert*\nStudent: {student.name}\nTime: {time_now}\nStatus: Left"
@@ -134,7 +131,7 @@ def notify_parents(student, status, time_now):
     threading.Thread(target=send_email, args=(student.parent_email, email_sub, email_body)).start()
     threading.Thread(target=send_whatsapp, args=(student.parent_mobile, wa_body)).start()
 
-# ================= LOGIN ROUTE =================
+# ================= ROUTES =================
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     msg = ""
@@ -161,7 +158,6 @@ def logout():
     session.clear()
     return redirect(url_for('login'))
 
-# ================= ROUTES =================
 @app.route('/scan/<string:student_id>')
 def scan(student_id):
     if not session.get('logged_in'):
@@ -169,12 +165,11 @@ def scan(student_id):
 
     try:
         now = get_ist_time()
-        
-        # ✅ DATE for Database (Corrects the previous bug)
         today_str = now.strftime('%d-%m-%Y') 
         
-        # ✅ TIME for SMS (Standard "08:00 AM" format - Matches Dec 3rd file)
-        display_time = now.strftime('%I:%M %p') 
+        # ✅ TIME FORMAT: "08.00 AM" (Matches your Alphanumeric DLT settings)
+        # Using a DOT (.) instead of a colon to match your sample "8.00 am"
+        display_time = now.strftime('%I.%M %p') 
 
         student = Student.query.get(student_id)
         if not student: return jsonify({"error": "Student not registered"}), 404
@@ -182,7 +177,6 @@ def scan(student_id):
         record = Attendance.query.filter_by(student_id=student_id, date=today_str).first()
         mobile = student.parent_mobile if student.parent_mobile else ""
 
-        # --- ENTRY ---
         if not record:
             new = Attendance(student_id=student_id, date=today_str, entry_time=display_time, parent_mobile=mobile)
             db.session.add(new)
@@ -190,14 +184,18 @@ def scan(student_id):
             notify_parents(student, "ENTRY", display_time)
             return jsonify({"status": "ENTRY_MARKED", "time": display_time})
 
-        # --- EXIT ---
         try:
-            entry_time_obj = datetime.strptime(record.entry_time, '%I:%M %p').time()
+            # Parse the time back (handling the dot format)
+            # Try dot format first, then fallback to colon
+            try:
+                entry_time_obj = datetime.strptime(record.entry_time, '%I.%M %p').time()
+            except:
+                entry_time_obj = datetime.strptime(record.entry_time, '%I:%M %p').time()
+                
             entry_dt = now.replace(hour=entry_time_obj.hour, minute=entry_time_obj.minute, second=0, microsecond=0)
             duration = now - entry_dt
         except: duration = timedelta(minutes=0)
 
-        # 45 Minutes Lock
         if duration >= timedelta(minutes=45):
             if record.exit_time:
                 return jsonify({"status": "ALREADY_EXITED", "message": "Already scanned out."})
