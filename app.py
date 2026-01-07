@@ -36,8 +36,8 @@ SMS_ENTITY_ID = "1701164059159702167"
 SMS_SENDER = "CSTINI"
 
 # TEMPLATE IDs
-ENTRY_TEMPLATE_ID = "1707176741537683719"  # Entry ID from Dec 3rd (Working)
-EXIT_TEMPLATE_ID  = "1707176745232982829"  # New Exit ID (Working)
+ENTRY_TEMPLATE_ID = "1707176741537683719"  # Entry ID (Dec 3rd Version)
+EXIT_TEMPLATE_ID  = "1707176745232982829"  # New Exit ID
 
 INSTITUTE_PHONE = "7083021167"
 
@@ -74,11 +74,16 @@ def get_ist_time():
 def send_sms(phone, msg, template_id):
     if not phone: return
     if len(phone) == 10: phone = "91" + phone
+    
     encoded_msg = urllib.parse.quote(msg)
     url = f"http://servermsg.com/api/SmsApi/SendSingleApi?apikey={SMS_API_KEY}&SenderID={SMS_SENDER}&Phno={phone}&Msg={encoded_msg}&EntityID={SMS_ENTITY_ID}&TemplateID={template_id}"
+    
     try: 
-        requests.get(url, timeout=10)
-    except: pass
+        # 🔥 DEBUGGING ADDED HERE: Prints the Server Response
+        response = requests.get(url, timeout=10)
+        print(f"SMS SENT TO {phone} | TEMPLATE: {template_id} | STATUS: {response.text}")
+    except Exception as e: 
+        print(f"SMS FAILED TO {phone}: {str(e)}")
 
 def send_email(to_email, subject, body):
     if not to_email or "@" not in to_email: return
@@ -93,6 +98,7 @@ def send_email(to_email, subject, body):
         server.login(SENDER_EMAIL, SENDER_PASSWORD)
         server.sendmail(SENDER_EMAIL, to_email, msg.as_string())
         server.quit()
+        print(f"EMAIL SENT TO {to_email}")
     except Exception as e: print(f"Email Error: {e}")
 
 def send_whatsapp(phone, msg_body):
@@ -105,18 +111,20 @@ def send_whatsapp(phone, msg_body):
     except: pass
 
 def notify_parents(student, status, time_now):
-    # time_now will be "08:00 AM"
+    # time_now will be "08:00 AM" (Standard Format)
     
     if status == "ENTRY":
-        # ✅ ENTRY: Uses standard time format (Fixes the problem)
+        # ✅ ENTRY SMS (Matches Dec 3rd logic)
         sms_msg = f"Dear {student.name}, entered the class at {time_now}. CST {INSTITUTE_PHONE}"
+        
         email_sub = f"Entry Alert: {student.name}"
         email_body = f"Dear Parent,\n\n{student.name} has reached the institute at {time_now}.\n\n- CST Institute"
         wa_body = f"✅ *Entry Alert*\nStudent: {student.name}\nTime: {time_now}\nStatus: Present"
         tid = ENTRY_TEMPLATE_ID
     else:
-        # ✅ EXIT: Uses the NEW text you wanted
+        # ✅ EXIT SMS (Matches New Template)
         sms_msg = f"Dear {student.name}, has successfully completed todays class and has now left CST Education India"
+        
         email_sub = f"Exit Alert: {student.name}"
         email_body = f"Dear Parent,\n\n{student.name} has left the institute at {time_now}.\n\n- CST Education India"
         wa_body = f"👋 *Exit Alert*\nStudent: {student.name}\nTime: {time_now}\nStatus: Left"
@@ -162,10 +170,10 @@ def scan(student_id):
     try:
         now = get_ist_time()
         
-        # ✅ FIX 1: Use DATE for today_str (Critical bug fix)
+        # ✅ DATE for Database (Corrects the previous bug)
         today_str = now.strftime('%d-%m-%Y') 
         
-        # ✅ FIX 2: Use STANDARD TIME (08:00 AM) - This fixes the Entry SMS
+        # ✅ TIME for SMS (Standard "08:00 AM" format - Matches Dec 3rd file)
         display_time = now.strftime('%I:%M %p') 
 
         student = Student.query.get(student_id)
@@ -184,7 +192,6 @@ def scan(student_id):
 
         # --- EXIT ---
         try:
-            # Parses "08:00 AM" correctly
             entry_time_obj = datetime.strptime(record.entry_time, '%I:%M %p').time()
             entry_dt = now.replace(hour=entry_time_obj.hour, minute=entry_time_obj.minute, second=0, microsecond=0)
             duration = now - entry_dt
