@@ -1,17 +1,19 @@
 import os
 import csv
 import io
+import zipfile
 import threading
 import urllib.parse
 import requests
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from flask import Flask, jsonify, render_template, make_response, request, session, redirect, url_for, render_template_string
+from flask import Flask, jsonify, render_template, make_response, request, session, redirect, url_for, render_template_string, send_file
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime, timedelta
 import pytz 
 import traceback 
+import qrcode  # ✅ Make sure 'qrcode' is in your requirements.txt
 
 app = Flask(__name__)
 app.secret_key = 'cst_secure_key_2026' 
@@ -29,6 +31,7 @@ db = SQLAlchemy(app)
 # ================= LOGIN CONFIG =================
 ADMIN_USERNAME = "admin"
 ADMIN_PASSWORD = "Cst@11210143" 
+DOMAIN_URL = "https://scan.cstai.in" # ✅ Used for generating QR Links
 
 # ================= CREDENTIALS =================
 SMS_API_KEY = "sb6DpbNkzTrZmn6M4OOs9Zuu4sVWvv0owEBMrgjEuRo%3D"
@@ -37,8 +40,7 @@ SMS_SENDER = "CSTINI"
 
 # ✅ NEW APPROVED ENTRY TEMPLATE ID
 ENTRY_TEMPLATE_ID = "1707176777667925464"
-
-# Exit Template ID (Keep the working one)
+# Exit Template ID 
 EXIT_TEMPLATE_ID  = "1707176745232982829"  
 
 INSTITUTE_PHONE = "7083021167"
@@ -79,7 +81,6 @@ def send_sms(phone, msg, template_id):
     encoded_msg = urllib.parse.quote(msg)
     url = f"http://servermsg.com/api/SmsApi/SendSingleApi?apikey={SMS_API_KEY}&SenderID={SMS_SENDER}&Phno={phone}&Msg={encoded_msg}&EntityID={SMS_ENTITY_ID}&TemplateID={template_id}"
     try: 
-        # Debug print to help check status in logs
         response = requests.get(url, timeout=10)
         print(f"SMS SENT TO {phone} | TEMPLATE: {template_id} | STATUS: {response.text}")
     except Exception as e: 
@@ -111,17 +112,14 @@ def send_whatsapp(phone, msg_body):
 
 def notify_parents(student, status, time_now):
     if status == "ENTRY":
-        # ✅ NEW APPROVED MESSAGE FORMAT
-        # "Dear {Name}, entered the class at {Time}. CST Education India 7083021167"
+        # Dear {Name}, entered the class at {Time}. CST Education India 7083021167
         sms_msg = f"Dear {student.name}, entered the class at {time_now}. CST Education India 7083021167"
-        
         email_sub = f"Entry Alert: {student.name}"
         email_body = f"Dear Parent,\n\n{student.name} has reached the institute at {time_now}.\n\n- CST Institute"
         wa_body = f"✅ *Entry Alert*\nStudent: {student.name}\nTime: {time_now}\nStatus: Present"
         tid = ENTRY_TEMPLATE_ID
     else:
-        # Exit Message (Unchanged)
-        sms_msg = f"Dear {student.name}, has successfully completed todays class and has now left CST Education India"
+        sms_msg = f"Dear {student.name}, has successfully completed today’s class and has now left CST Education India"
         email_sub = f"Exit Alert: {student.name}"
         email_body = f"Dear Parent,\n\n{student.name} has left the institute at {time_now}.\n\n- CST Education India"
         wa_body = f"👋 *Exit Alert*\nStudent: {student.name}\nTime: {time_now}\nStatus: Left"
@@ -131,7 +129,164 @@ def notify_parents(student, status, time_now):
     threading.Thread(target=send_email, args=(student.parent_email, email_sub, email_body)).start()
     threading.Thread(target=send_whatsapp, args=(student.parent_mobile, wa_body)).start()
 
-# ================= ROUTES =================
+# ================= DASHBOARD & ADMIN ROUTES =================
+@app.route('/dashboard')
+def dashboard():
+    if not session.get('logged_in'):
+        return redirect(url_for('login'))
+    
+    # HTML Dashboard UI
+    return render_template_string("""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Teacher Dashboard</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <style>
+            body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f4f7f6; margin: 0; padding: 20px; }
+            .container { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+            h1 { color: #333; text-align: center; margin-bottom: 30px; }
+            .card { background: #f9f9f9; border: 1px solid #ddd; padding: 20px; border-radius: 8px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; }
+            .card h3 { margin: 0 0 10px 0; color: #555; }
+            .card p { margin: 0; color: #777; font-size: 14px; }
+            .btn { text-decoration: none; padding: 10px 20px; border-radius: 5px; color: white; font-weight: bold; cursor: pointer; border: none; display: inline-block; }
+            .btn-blue { background: #007bff; } .btn-blue:hover { background: #0056b3; }
+            .btn-green { background: #28a745; } .btn-green:hover { background: #218838; }
+            .btn-orange { background: #fd7e14; } .btn-orange:hover { background: #e36d0a; }
+            .btn-red { background: #dc3545; } .btn-red:hover { background: #c82333; }
+            input[type=file] { padding: 5px; }
+            .header-buttons { display: flex; justify-content: space-between; margin-bottom: 20px; }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header-buttons">
+                <a href="{{ url_for('teacher_scanner') }}" class="btn btn-green">📷 Go to Scanner</a>
+                <a href="{{ url_for('logout') }}" class="btn btn-red">Log Out</a>
+            </div>
+            <h1>🏫 Teacher Admin Dashboard</h1>
+            
+            {% with messages = get_flashed_messages() %}
+              {% if messages %}
+                <div style="padding: 10px; background: #d4edda; color: #155724; border-radius: 5px; margin-bottom: 20px;">
+                    {{ messages[0] }}
+                </div>
+              {% endif %}
+            {% endwith %}
+
+            <div class="card">
+                <div>
+                    <h3>📂 1. Add/Update Students</h3>
+                    <p>Upload your <b>students.csv</b> file here.</p>
+                </div>
+                <form action="{{ url_for('upload_students') }}" method="post" enctype="multipart/form-data" style="display:flex; align-items:center;">
+                    <input type="file" name="file" required accept=".csv">
+                    <button type="submit" class="btn btn-blue">Upload CSV</button>
+                </form>
+            </div>
+
+            <div class="card">
+                <div>
+                    <h3>🏁 2. Get QR Codes</h3>
+                    <p>Download a ZIP file of all student QR codes.</p>
+                </div>
+                <a href="{{ url_for('download_all_qrs') }}" class="btn btn-orange">Download QRs</a>
+            </div>
+
+            <div class="card">
+                <div>
+                    <h3>📊 3. Attendance Report</h3>
+                    <p>Download monthly attendance in Excel/CSV.</p>
+                </div>
+                <a href="{{ url_for('download_report') }}" class="btn btn-blue">Download Report</a>
+            </div>
+        </div>
+    </body>
+    </html>
+    """)
+
+@app.route('/upload_students', methods=['POST'])
+def upload_students():
+    if not session.get('logged_in'): return redirect(url_for('login'))
+    
+    if 'file' not in request.files:
+        return "No file uploaded", 400
+    
+    file = request.files['file']
+    if file.filename == '':
+        return "No file selected", 400
+
+    try:
+        # Read CSV file from upload
+        stream = io.StringIO(file.stream.read().decode("UTF8"), newline=None)
+        reader = csv.DictReader(stream)
+        
+        count = 0
+        updated = 0
+        
+        for row in reader:
+            s_id = row['id'].strip()
+            name = row['name'].strip()
+            mobile = row['parent_mobile'].strip()
+            email = row.get('parent_email', '').strip()
+
+            student = Student.query.get(s_id)
+            if student:
+                student.name = name
+                student.parent_mobile = mobile
+                student.parent_email = email
+                updated += 1
+            else:
+                new_s = Student(id=s_id, name=name, parent_mobile=mobile, parent_email=email)
+                db.session.add(new_s)
+                count += 1
+        
+        db.session.commit()
+        from flask import flash
+        app.secret_key = 'cst_secure_key_2026' # Ensure key is set
+        # Using a simple URL param for success message in this basic example if flash setup is complex,
+        # but let's try to inject a success message into the dashboard render.
+        return render_template_string("""<script>alert('✅ Success! Added: {{c}} New, Updated: {{u}}'); window.location.href='/dashboard';</script>""", c=count, u=updated)
+
+    except Exception as e:
+        return f"Error processing CSV: {str(e)}"
+
+@app.route('/download_all_qrs')
+def download_all_qrs():
+    if not session.get('logged_in'): return redirect(url_for('login'))
+
+    try:
+        students = Student.query.all()
+        zip_buffer = io.BytesIO()
+        
+        with zipfile.ZipFile(zip_buffer, 'w') as zf:
+            for s in students:
+                # Generate QR Link
+                url = f"{DOMAIN_URL}/scan/{s.id}"
+                
+                # Create QR Image
+                qr = qrcode.QRCode(box_size=10, border=4)
+                qr.add_data(url)
+                qr.make(fit=True)
+                img = qr.make_image(fill_color="black", back_color="white")
+                
+                # Save to Zip
+                img_buffer = io.BytesIO()
+                img.save(img_buffer, format="PNG")
+                zf.writestr(f"qr_{s.id}.png", img_buffer.getvalue())
+
+        zip_buffer.seek(0)
+        
+        return send_file(
+            zip_buffer,
+            mimetype='application/zip',
+            as_attachment=True,
+            download_name='all_student_qrs.zip'
+        )
+    except Exception as e:
+        return f"Error generating QRs: {str(e)}"
+
+# ================= EXISTING ROUTES =================
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     msg = ""
@@ -140,7 +295,7 @@ def login():
         pw = request.form.get('password')
         if user == ADMIN_USERNAME and pw == ADMIN_PASSWORD:
             session['logged_in'] = True
-            return redirect(url_for('teacher_scanner'))
+            return redirect(url_for('dashboard')) # 👈 Changed redirect to Dashboard
         else:
             msg = "❌ Wrong Password"
     return render_template_string("""
@@ -166,9 +321,7 @@ def scan(student_id):
     try:
         now = get_ist_time()
         today_str = now.strftime('%d-%m-%Y') 
-        
-        # ✅ TIME FORMAT: "08.00 AM" (Matches your Alphanumeric DLT settings)
-        # Using a DOT (.) instead of a colon to match your sample "8.00 am"
+        # Time format matching DLT 08.00 AM
         display_time = now.strftime('%I.%M %p') 
 
         student = Student.query.get(student_id)
@@ -185,13 +338,10 @@ def scan(student_id):
             return jsonify({"status": "ENTRY_MARKED", "time": display_time})
 
         try:
-            # Parse the time back (handling the dot format)
-            # Try dot format first, then fallback to colon
             try:
                 entry_time_obj = datetime.strptime(record.entry_time, '%I.%M %p').time()
             except:
                 entry_time_obj = datetime.strptime(record.entry_time, '%I:%M %p').time()
-                
             entry_dt = now.replace(hour=entry_time_obj.hour, minute=entry_time_obj.minute, second=0, microsecond=0)
             duration = now - entry_dt
         except: duration = timedelta(minutes=0)

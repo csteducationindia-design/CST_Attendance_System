@@ -3,3 +3,4 @@ flask_sqlalchemy
 requests
 gunicorn
 pytz
+qrcode
