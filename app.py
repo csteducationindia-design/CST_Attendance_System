@@ -165,6 +165,7 @@ def dashboard():
                 <a href="{{ url_for('logout') }}" class="btn btn-red">Log Out</a>
             </div>
             <h1>🏫 Teacher Admin Dashboard</h1>
+	    <h1>  CST INSTITUTE</h1>
             
             {% with messages = get_flashed_messages() %}
               {% if messages %}
