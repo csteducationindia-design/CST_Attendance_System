@@ -119,7 +119,7 @@ def notify_parents(student, status, time_now):
         wa_body = f"✅ *Entry Alert*\nStudent: {student.name}\nTime: {time_now}\nStatus: Present"
         tid = ENTRY_TEMPLATE_ID
     else:
-        sms_msg = f"Dear {student.name}, has successfully completed today’s class and has now left CST Education India"
+        sms_msg = f"Dear {student.name}, has successfully completed todays class and has now left CST Education India"
         email_sub = f"Exit Alert: {student.name}"
         email_body = f"Dear Parent,\n\n{student.name} has left the institute at {time_now}.\n\n- CST Education India"
         wa_body = f"👋 *Exit Alert*\nStudent: {student.name}\nTime: {time_now}\nStatus: Left"
