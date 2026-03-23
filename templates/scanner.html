@@ -9,10 +9,10 @@
         body { font-family: sans-serif; text-align: center; background: #f4f4f4; padding: 20px; }
         h2 { margin-bottom: 10px; }
         
-        /* 🚀 UPGRADED: Massive Scanner Box for Laptops */
+        /* Scanner Box */
         #reader { 
             width: 100%; 
-            max-width: 800px; /* Increased from 500px */
+            max-width: 800px; 
             margin: 0 auto; 
             border: 4px solid #333; 
             border-radius: 10px; 
@@ -20,7 +20,7 @@
             box-shadow: 0px 4px 15px rgba(0,0,0,0.2);
         }
         
-        /* 🚀 UPGRADED: Bigger Text for the Teacher */
+        /* Status Text */
         #status { margin-top: 20px; padding: 20px; border-radius: 8px; font-weight: bold; display: none; font-size: 28px; }
         .success { background-color: #d4edda; color: #155724; border: 2px solid #c3e6cb; }
         .error { background-color: #f8d7da; color: #721c24; border: 2px solid #f5c6cb; }
@@ -50,11 +50,41 @@
     <div id="status"></div>
 
     <script>
+        // 🎵 FUNCTION TO PLAY A "BEEP" SOUND
+        function playBeep() {
+            try {
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+
+                oscillator.type = 'sine';
+                oscillator.frequency.setValueAtTime(800, audioCtx.currentTime); // Pitch of the beep
+
+                gainNode.gain.setValueAtTime(0.5, audioCtx.currentTime); // Volume of the beep
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+
+                oscillator.start();
+                
+                // Stop the beep after 150 milliseconds
+                setTimeout(() => {
+                    oscillator.stop();
+                    audioCtx.close();
+                }, 150); 
+            } catch (e) {
+                console.log("Audio not supported or blocked by browser", e);
+            }
+        }
+
         let isScanning = true;
         let lastResult = "";
 
         function onScanSuccess(decodedText, decodedResult) {
             if (!isScanning || decodedText === lastResult) return;
+            
+            // 🔊 PLAY THE BEEP SOUND IMMEDIATELY!
+            playBeep();
             
             isScanning = false;
             lastResult = decodedText;
@@ -100,12 +130,12 @@
                 });
         }
 
-        // 🚀 UPGRADED: Super Fast Detection Settings
+        // Super Fast Detection Settings
         let html5QrcodeScanner = new Html5QrcodeScanner(
             "reader", { 
-                fps: 30,                              // Very fast frame rate (was 10)
-                qrbox: { width: 450, height: 450 },   // Massive scanning target area (was 250)
-                aspectRatio: 1.333334                 // Matches standard laptop webcams perfectly
+                fps: 30,                              
+                qrbox: { width: 450, height: 450 },   
+                aspectRatio: 1.333334                 
             });
         html5QrcodeScanner.render(onScanSuccess);
     </script>
