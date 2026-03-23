@@ -6,7 +6,7 @@
     <title>Teacher Scanner - CST AI</title>
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
     <style>
-        body { font-family: sans-serif; text-align: center; background: #f4f4f4; padding: 20px; }
+        body { font-family: sans-serif; text-align: center; background: #f4f4f4; padding: 20px; margin: 0; }
         h2 { margin-bottom: 10px; }
         
         /* Scanner Box */
@@ -20,11 +20,25 @@
             box-shadow: 0px 4px 15px rgba(0,0,0,0.2);
         }
         
-        /* Status Text */
-        #status { margin-top: 20px; padding: 20px; border-radius: 8px; font-weight: bold; display: none; font-size: 28px; }
-        .success { background-color: #d4edda; color: #155724; border: 2px solid #c3e6cb; }
-        .error { background-color: #f8d7da; color: #721c24; border: 2px solid #f5c6cb; }
-        .wait { background-color: #fff3cd; color: #856404; border: 2px solid #ffeeba; }
+        /* 🚀 FIX: FLOATING POP-UP STATUS MESSAGE */
+        #status { 
+            position: fixed; 
+            top: 30px; 
+            left: 50%; 
+            transform: translateX(-50%); 
+            z-index: 9999; 
+            padding: 15px 40px; 
+            border-radius: 50px; 
+            font-weight: bold; 
+            display: none; 
+            font-size: 26px; 
+            box-shadow: 0px 10px 30px rgba(0,0,0,0.5);
+            white-space: nowrap;
+        }
+        /* Make colors darker and text white so it pops on the screen! */
+        .success { background-color: #28a745; color: white; border: 3px solid #1e7e34; }
+        .error { background-color: #dc3545; color: white; border: 3px solid #bd2130; }
+        .wait { background-color: #ffc107; color: black; border: 3px solid #d39e00; }
 
         /* Dashboard Button */
         .back-btn {
@@ -43,11 +57,12 @@
 </head>
 <body>
 
+    <div id="status"></div>
+
     <a href="/dashboard" class="back-btn">⬅️ Back to Dashboard</a>
     <h2>📷 High-Speed CST Scanner</h2>
     
     <div id="reader"></div>
-    <div id="status"></div>
 
     <script>
         // 🎵 FUNCTION TO PLAY A "BEEP" SOUND
@@ -58,22 +73,21 @@
                 const gainNode = audioCtx.createGain();
 
                 oscillator.type = 'sine';
-                oscillator.frequency.setValueAtTime(800, audioCtx.currentTime); // Pitch of the beep
+                oscillator.frequency.setValueAtTime(800, audioCtx.currentTime); // Pitch
 
-                gainNode.gain.setValueAtTime(0.5, audioCtx.currentTime); // Volume of the beep
+                gainNode.gain.setValueAtTime(0.5, audioCtx.currentTime); // Volume
                 
                 oscillator.connect(gainNode);
                 gainNode.connect(audioCtx.destination);
 
                 oscillator.start();
                 
-                // Stop the beep after 150 milliseconds
                 setTimeout(() => {
                     oscillator.stop();
                     audioCtx.close();
                 }, 150); 
             } catch (e) {
-                console.log("Audio not supported or blocked by browser", e);
+                console.log("Audio not supported or blocked", e);
             }
         }
 
@@ -83,7 +97,7 @@
         function onScanSuccess(decodedText, decodedResult) {
             if (!isScanning || decodedText === lastResult) return;
             
-            // 🔊 PLAY THE BEEP SOUND IMMEDIATELY!
+            // 🔊 PLAY BEEP
             playBeep();
             
             isScanning = false;
@@ -94,13 +108,11 @@
             statusDiv.className = "wait";
             statusDiv.innerText = "⏳ Processing...";
 
-            // Extract student ID from the URL if it's a full URL
             let studentId = decodedText;
             if (decodedText.includes('/scan/')) {
                 studentId = decodedText.split('/scan/')[1];
             }
 
-            // Call the API
             fetch('/scan/' + studentId)
                 .then(response => response.json())
                 .then(data => {
@@ -121,16 +133,14 @@
                     console.error(err);
                 })
                 .finally(() => {
-                    // Resume scanning after 2 seconds
                     setTimeout(() => {
                         isScanning = true;
                         statusDiv.style.display = "none";
-                        lastResult = ""; // Allow re-scanning
+                        lastResult = ""; 
                     }, 2000);
                 });
         }
 
-        // Super Fast Detection Settings
         let html5QrcodeScanner = new Html5QrcodeScanner(
             "reader", { 
                 fps: 30,                              
