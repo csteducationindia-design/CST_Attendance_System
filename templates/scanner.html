@@ -20,7 +20,7 @@
             box-shadow: 0px 4px 15px rgba(0,0,0,0.2);
         }
         
-        /* 🚀 FIX: FLOATING POP-UP STATUS MESSAGE */
+        /* Floating Pop-Up Status Message */
         #status { 
             position: fixed; 
             top: 30px; 
@@ -35,7 +35,6 @@
             box-shadow: 0px 10px 30px rgba(0,0,0,0.5);
             white-space: nowrap;
         }
-        /* Make colors darker and text white so it pops on the screen! */
         .success { background-color: #28a745; color: white; border: 3px solid #1e7e34; }
         .error { background-color: #dc3545; color: white; border: 3px solid #bd2130; }
         .wait { background-color: #ffc107; color: black; border: 3px solid #d39e00; }
@@ -53,41 +52,67 @@
             font-size: 16px;
         }
         .back-btn:hover { background-color: #0056b3; }
+
+        /* Unlock Sound Button */
+        #sound-btn {
+            background-color: #28a745;
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 10px;
+            font-size: 20px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            animation: pulse 1.5s infinite;
+        }
+        #sound-btn:hover { background-color: #218838; }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
     </style>
 </head>
 <body>
 
     <div id="status"></div>
 
-    <a href="/dashboard" class="back-btn">⬅️ Back to Dashboard</a>
+    <a href="/dashboard" class="back-btn">⬅️ Back to Dashboard</a><br>
+    
+    <button id="sound-btn" onclick="enableSound()">🔊 Click Here to Enable Sound</button>
+
     <h2>📷 High-Speed CST Scanner</h2>
     
     <div id="reader"></div>
 
     <script>
-        // 🎵 FUNCTION TO PLAY A "BEEP" SOUND
-        function playBeep() {
-            try {
-                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                const oscillator = audioCtx.createOscillator();
-                const gainNode = audioCtx.createGain();
-
-                oscillator.type = 'sine';
-                oscillator.frequency.setValueAtTime(800, audioCtx.currentTime); // Pitch
-
-                gainNode.gain.setValueAtTime(0.5, audioCtx.currentTime); // Volume
+        // 🔊 UNLOCK AUDIO FUNCTION
+        function enableSound() {
+            if ('speechSynthesis' in window) {
+                // Speak a short confirmation to unlock the browser's audio engine
+                let msg = new SpeechSynthesisUtterance("Sound is ready.");
+                window.speechSynthesis.speak(msg);
                 
-                oscillator.connect(gainNode);
-                gainNode.connect(audioCtx.destination);
+                // Hide the button after clicking
+                document.getElementById("sound-btn").style.display = "none";
+            } else {
+                alert("Your browser does not support voice audio.");
+            }
+        }
 
-                oscillator.start();
+        // 🗣️ SMART SPEECH FUNCTION
+        function speakMessage(textToSpeak) {
+            if ('speechSynthesis' in window) {
+                let msg = new SpeechSynthesisUtterance(textToSpeak);
+                msg.rate = 1.0;  // Normal speed
+                msg.pitch = 1.0; // Normal pitch
                 
-                setTimeout(() => {
-                    oscillator.stop();
-                    audioCtx.close();
-                }, 150); 
-            } catch (e) {
-                console.log("Audio not supported or blocked", e);
+                // Cancel any currently speaking speech so it doesn't overlap
+                window.speechSynthesis.cancel(); 
+                window.speechSynthesis.speak(msg);
             }
         }
 
@@ -97,39 +122,50 @@
         function onScanSuccess(decodedText, decodedResult) {
             if (!isScanning || decodedText === lastResult) return;
             
-            // 🔊 PLAY BEEP
-            playBeep();
-            
             isScanning = false;
             lastResult = decodedText;
             
             const statusDiv = document.getElementById("status");
             statusDiv.style.display = "block";
             statusDiv.className = "wait";
-            statusDiv.innerText = "⏳ Processing...";
+            statusDiv.innerText = "⏳ Checking Database...";
 
             let studentId = decodedText;
             if (decodedText.includes('/scan/')) {
                 studentId = decodedText.split('/scan/')[1];
             }
 
+            // Call the API to check if it's an Entry or Exit
             fetch('/scan/' + studentId)
                 .then(response => response.json())
                 .then(data => {
-                    if(data.status === "ENTRY_MARKED" || data.status === "EXIT_MARKED") {
+                    if(data.status === "ENTRY_MARKED") {
                         statusDiv.className = "success";
                         statusDiv.innerText = "✅ " + data.status;
+                        // 🗣️ Speak Welcome for Entry
+                        speakMessage("Welcome to C. S. T.");
+                        
+                    } else if (data.status === "EXIT_MARKED") {
+                        statusDiv.className = "success";
+                        statusDiv.innerText = "✅ " + data.status;
+                        // 🗣️ Speak Goodbye for Exit
+                        speakMessage("Goodbye.");
+                        
                     } else if (data.status === "WAIT" || data.status === "ALREADY_EXITED") {
                         statusDiv.className = "wait";
                         statusDiv.innerText = "⚠️ " + data.message;
+                        speakMessage("Please wait.");
+                        
                     } else {
                         statusDiv.className = "error";
                         statusDiv.innerText = "❌ Error: " + (data.error || "Unknown");
+                        speakMessage("Error.");
                     }
                 })
                 .catch(err => {
                     statusDiv.className = "error";
                     statusDiv.innerText = "❌ Network Error";
+                    speakMessage("Network Error.");
                     console.error(err);
                 })
                 .finally(() => {
