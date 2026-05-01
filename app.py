@@ -100,15 +100,33 @@ def send_email(to_email, subject, body):
         server.sendmail(SENDER_EMAIL, to_email, msg.as_string())
         server.quit()
     except Exception as e: print(f"Email Error: {e}")
-
 def send_whatsapp(phone, msg_body):
-    if not WHATSAPP_TOKEN: return
-    if len(phone) == 10: phone = "91" + phone
-    url = f"https://graph.facebook.com/v17.0/{WHATSAPP_PHONE_ID}/messages"
-    headers = {"Authorization": f"Bearer {WHATSAPP_TOKEN}", "Content-Type": "application/json"}
-    data = {"messaging_product": "whatsapp", "to": phone, "type": "text", "text": {"body": msg_body}}
-    try: requests.post(url, headers=headers, json=data, timeout=10)
-    except: pass
+    if not phone: return  # <--- Add this safety check
+
+    # Use your self-hosted Evolution API instead of Meta
+    url = "http://72.61.233.158:8081/message/sendText/cst_prod"
+    
+    headers = {
+        "apikey": "cst_super_secret_key_2026",
+        "Content-Type": "application/json"
+    }
+    
+    # Ensure the phone number format is perfectly clean (requires 91 prefix)
+    clean_phone = str(phone).replace("+", "").replace("-", "").replace(" ", "").strip()
+    if len(clean_phone) == 10:
+        clean_phone = f"91{clean_phone}"
+
+    data = {
+        "number": clean_phone,
+        "text": msg_body
+    }
+    
+    try: 
+        # Send the request to your Coolify VPS
+        response = requests.post(url, headers=headers, json=data, timeout=10)
+        print(f"WhatsApp SENT TO {clean_phone} | STATUS: {response.status_code}")
+    except Exception as e: 
+        print(f"WhatsApp FAILED TO {clean_phone}: {str(e)}")
 
 def notify_parents(student, status, time_now):
     if status == "ENTRY":
